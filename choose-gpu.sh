@@ -5,7 +5,7 @@ lspci="$(lspci -nn | grep '\[03')" # https://pci-ids.ucw.cz/read/PD/03
 echo -e "Please enter the GPU number you want to pass to WayDroid:\n"
 gpus=()
 i=0
-while IFS= read lspci; do
+while IFS= read -r lspci; do
 	gpus+=("${lspci}")
 	echo "  $((++i)). ${lspci}"
 done < <(echo "${lspci}")
@@ -21,12 +21,27 @@ echo ""
 echo "Confirm that these belong to your GPU:"
 echo ""
 
-ls -l /dev/dri/by-path/ | grep -i "${gpuchoice}"
+for file in /dev/dri/by-path/*; do
+	if [[ -e ${file} && "$(basename "${file}")" == *"${gpuchoice}"* ]]; then
+		ls -l "${file}"
+	fi
+done
 
 echo ""
 
-card=$(ls -l /dev/dri/by-path/ | grep -i "${gpuchoice}" | grep -o "card[0-9]")
-rendernode=$(ls -l /dev/dri/by-path/ | grep -i "${gpuchoice}" | grep -o "renderD[1-9][1-9][1-9]")
+card=""
+rendernode=""
+for file in /dev/dri/by-path/*; do
+	if [[ -e ${file} && "$(basename "${file}")" == *"${gpuchoice}"* ]]; then
+		link_target=$(readlink "${file}")
+		if [[ ${link_target} == *card[0-9]* ]]; then
+			card=$(basename "${link_target}" | grep -o "card[0-9]")
+		fi
+		if [[ ${link_target} == *renderD[1-9][1-9][1-9]* ]]; then
+			rendernode=$(basename "${link_target}" | grep -o "renderD[1-9][1-9][1-9]")
+		fi
+	fi
+done
 
 echo /dev/dri/"${card}"
 echo /dev/dri/"${rendernode}"
